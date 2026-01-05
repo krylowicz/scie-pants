@@ -159,6 +159,28 @@ def main() -> NoReturn:
     venvs_dir = base_dir / "venvs"
 
     version = options.pants_version
+
+    if options.debug:
+        debugpy_requirement = options.debugpy_requirement or "debugpy==1.6.0"
+        venv_dir = venvs_dir / f"{version}-{debugpy_requirement}"
+    else:
+        venv_dir = venvs_dir / str(version)
+
+    pants_server_exe = venv_dir / "bin" / "pants"
+    if pants_server_exe.exists():
+        info(f"Pants {version} already installed at {venv_dir}")
+        native_client_binaries = glob(
+            str(venv_dir / "lib/python*/site-packages/pants/bin/native_client")
+        )
+        pants_client_exe = (
+            native_client_binaries[0] if len(native_client_binaries) == 1 else str(pants_server_exe)
+        )
+        with open(env_file, "a") as fp:
+            print(f"VIRTUAL_ENV={venv_dir}", file=fp)
+            print(f"PANTS_SERVER_EXE={pants_server_exe}", file=fp)
+            print(f"PANTS_CLIENT_EXE={pants_client_exe}", file=fp)
+        sys.exit(0)
+
     python_version = ".".join(map(str, sys.version_info[:3]))
     info(f"Bootstrapping Pants {version}")
     debug(f"Pants itself is using: {sys.implementation.name} {python_version}")

@@ -15,8 +15,10 @@ from packaging.version import Version
 
 from scie_pants.log import fatal, info, init_logging, warn
 from scie_pants.pants_version import (
+    PYTHON_IDS,
     determine_latest_stable_version,
     determine_tag_version,
+    get_python_id_for_pants_version,
 )
 from scie_pants.ptex import Ptex
 
@@ -77,6 +79,22 @@ def main() -> NoReturn:
     env_file = os.environ.get("SCIE_BINDING_ENV")
     if not env_file:
         fatal("Expected SCIE_BINDING_ENV to be set in the environment")
+
+    if options.pants_version:
+        venv_dir = base_dir / "venvs" / options.pants_version
+        pants_exe = venv_dir / "bin" / "pants"
+        if pants_exe.exists():
+            info(f"Pants {options.pants_version} already installed at {venv_dir}")
+            version = Version(options.pants_version)
+            python_id = get_python_id_for_pants_version(version)
+            python = PYTHON_IDS.get(python_id, "cpython39")
+            with open(env_file, "a") as fp:
+                print(f"PANTS_VERSION={options.pants_version}", file=fp)
+                print(f"PYTHON={python}", file=fp)
+                if options.pants_config:
+                    build_root = Path(options.pants_config).parent
+                    print(f"PANTS_BUILDROOT_OVERRIDE={build_root}", file=fp)
+            sys.exit(0)
 
     ptex = get_ptex(options)
 
